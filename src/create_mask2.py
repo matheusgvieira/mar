@@ -36,11 +36,16 @@ def index_max_porc(labels):
     # Print qtd and porcentagem
     inteiro, keys, values, porc = qtd_porc(labels);
     porc[0] = 0;
+    porc[1] = 0;
+    porc[2] = 0;
     n = porc.index(max(porc));
     
-    return n;
+    return n, inteiro;
 
 def create_mask(img):
+    
+    # kernel = np.ones((50,50),np.uint8)
+    kernel = cv.getStructuringElement(cv.MORPH_RECT,(9,9))
     
     # Scaling and transforming for uint8
     img2 = cv.normalize(img, None, -1, 1, cv.NORM_MINMAX, cv.CV_8U);
@@ -48,31 +53,32 @@ def create_mask(img):
     # Labeling
     num_labels, labels = cv.connectedComponents(img2);
     
-    # Print qtd and porcentagem
-    n = index_max_porc(labels);
+    plt.figure()
+    plt.axis("off")
+    plt.imshow(labels, cmap=plt.cm.gray) 
+    plt.title('Labels')
+    plt.show()   
     
-    # Replace values in images
-    labels = np.where(labels>n, 0, labels);
-    
-    # Scaling and transforming for uint8
-    img3 = cv.normalize(labels, None, -1, 1, cv.NORM_MINMAX, cv.CV_8U);
-    
-    # kernel = np.ones((50,50),np.uint8)
-    kernel = cv.getStructuringElement(cv.MORPH_RECT,(9,9))
-    erosion = cv.erode(img3,kernel,iterations = 1)
-    
+    labels = np.where(labels!=0, 1, labels);
+    labels = cv.normalize(labels, None, -1, 1, cv.NORM_MINMAX, cv.CV_8U);
+    img3 = cv.dilate(labels,kernel,iterations = 1) ## Dialtar image
+        
     # Labeling
-    num_labels, labels = cv.connectedComponents(erosion);
+    num_labels, labels = cv.connectedComponents(img3);
     
-    n = index_max_porc(labels);
+    # Print qtd and porcentagem
+    n, i = index_max_porc(labels);
     
     # Replace values in images
     labels = np.where(labels!=n, 0, labels);
     
+    # kernel = np.ones((50,50),np.uint8)
+    kernel = cv.getStructuringElement(cv.MORPH_RECT,(6,6))
+    
     # Scaling and transforming for uint8
     img4 = cv.normalize(labels, None, -1, 255, cv.NORM_MINMAX, cv.CV_8U);   
         
-    img4 = cv.dilate(img4,kernel,iterations = 1) ## Dialtar image
+    img4 = cv.erode(img4,kernel,iterations = 1) ## Dialtar image
     
     return img4;
 
@@ -94,7 +100,7 @@ def apply_mask(img, mask):
     return img6;
 
 # Tests
-img = cv.imread('../images/1.jpg', 0);  # Read image
+img = cv.imread('../images/3.jpeg', 0);  # Read image
 mask = create_mask(img);                # Create mask
 mask_img = apply_mask(img, mask);       # Apply mask
 
@@ -114,4 +120,7 @@ for a in ax:
     a.axis('off')
 fig.tight_layout()
 plt.show() 
+
+cv.imwrite('../outputs/mask1.png', mask);
+cv.imwrite('../outputs/mask_img.png', mask_img);
 
