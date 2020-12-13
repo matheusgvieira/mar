@@ -2,6 +2,7 @@ import cv2 as cv;
 import numpy as np;
 import matplotlib.pyplot as plt;
 import collections
+import os
 
 ## Calcular quantidade e porcentagem de cada componente encontrado
 def qtd_porc(img):
@@ -37,15 +38,24 @@ def index_max_porc(labels):
     inteiro, keys, values, porc = qtd_porc(labels);
     porc[0] = 0;
     porc[1] = 0;
-    porc[2] = 0;
     n = porc.index(max(porc));
     
-    return n, inteiro;
+    return n;
+    
+# Find position of bigger
+def index_max_porc2(labels, z):
+    # Print qtd and porcentagem
+    inteiro, keys, values, porc = qtd_porc(labels);
+    porc[0] = 0;
+    porc[1] = 0;
+    porc[3] = 0;
+    porc[10] = 0;
+    porc[z] = 0;
+    n = porc.index(max(porc));
+    
+    return n;
 
 def create_mask(img):
-    
-    # kernel = np.ones((50,50),np.uint8)
-    kernel = cv.getStructuringElement(cv.MORPH_RECT,(9,9))
     
     # Scaling and transforming for uint8
     img2 = cv.normalize(img, None, -1, 1, cv.NORM_MINMAX, cv.CV_8U);
@@ -53,32 +63,23 @@ def create_mask(img):
     # Labeling
     num_labels, labels = cv.connectedComponents(img2);
     
-    plt.figure()
-    plt.axis("off")
-    plt.imshow(labels, cmap=plt.cm.gray) 
-    plt.title('Labels')
-    plt.show()   
-    
-    labels = np.where(labels!=0, 1, labels);
-    labels = cv.normalize(labels, None, -1, 1, cv.NORM_MINMAX, cv.CV_8U);
-    img3 = cv.dilate(labels,kernel,iterations = 1) ## Dialtar image
-        
-    # Labeling
-    num_labels, labels = cv.connectedComponents(img3);
-    
     # Print qtd and porcentagem
-    n, i = index_max_porc(labels);
+    n = index_max_porc(labels);
+    
+    n2 = (index_max_porc2(labels, n))
     
     # Replace values in images
-    labels = np.where(labels!=n, 0, labels);
+    labels1 = np.where(labels!=n, 0, labels);
+    labels2 = np.where(labels!=n2, 0, labels);
+    labels = ~labels1 * ~labels2;
     
-    # kernel = np.ones((50,50),np.uint8)
-    kernel = cv.getStructuringElement(cv.MORPH_RECT,(6,6))
+    # # kernel = np.ones((50,50),np.uint8)
+    kernel = cv.getStructuringElement(cv.MORPH_RECT,(2,2))
     
     # Scaling and transforming for uint8
     img4 = cv.normalize(labels, None, -1, 255, cv.NORM_MINMAX, cv.CV_8U);   
         
-    img4 = cv.erode(img4,kernel,iterations = 1) ## Dialtar image
+    img4 = cv.dilate(img4,kernel,iterations = 1) ## Dialtar image
     
     return img4;
 
@@ -100,27 +101,45 @@ def apply_mask(img, mask):
     return img6;
 
 # Tests
-img = cv.imread('../images/3.jpeg', 0);  # Read image
+img = cv.imread('8.jpg', 0);  # Read image
 mask = create_mask(img);                # Create mask
 mask_img = apply_mask(img, mask);       # Apply mask
 
    
-# Print images
-fig, axes = plt.subplots(1, 3,figsize=(10, 10));
-ax = axes.ravel()
 
-ax[0].imshow(img, cmap=plt.cm.gray);
-ax[0].set_title('Image Original');
-ax[1].imshow(mask, cmap=plt.cm.gray)
-ax[1].set_title('Máscara');
-ax[2].imshow(mask_img, cmap=plt.cm.gray)
-ax[2].set_title('Output ');
+M, N = img.shape
+img5 = np.copy(img)
+for i in range (0, M):
+    for j in range(0,N):
+        img5[i,j] = 0
+        
+for i in range (0, M):
+    for j in range(0,N):
+        if mask[i,j] > 0:
+            img[i,j] = 0
+            img5[i,j] = 255
+            
+        
+cv.imshow('fd',img)
+cv.imshow('feg',img5)
 
-for a in ax:
-    a.axis('off')
-fig.tight_layout()
-plt.show() 
+cv.imwrite('imss.jpg',img)
+cv.imwrite('imss2.jpg',img5)
 
-cv.imwrite('../outputs/mask1.png', mask);
-cv.imwrite('../outputs/mask_img.png', mask_img);
+#pegar a imagem original (apenas para comparação)
+img115 = cv.imread('8.jpg',0)
 
+#print imagem original
+cv.imshow('imgrr',img115)
+
+#interpolação de acordo com a cor e com os bits ao lado (selecionado com a máscara)
+dst = cv.inpaint(img,img5,3,cv.INPAINT_TELEA)
+
+#print imagem reconstruída
+cv.imshow('img-rec', dst)
+
+#salvar o resultado
+cv.imwrite('rec.jpg', dst)
+
+cv.waitKey(0)
+cv.destroyAllWindows()
